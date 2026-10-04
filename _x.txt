@@ -1,8 +1,0 @@
-﻿56673
- M README.md
- M ui/__pycache__/main_window.cpython-314.pyc
- M ui/main_window.py
- M ui/pages/__pycache__/settings_page.cpython-314.pyc
- M ui/pages/settings_page.py
-?? _x.txt
-?? dist/img/uploads/avatar_20261002215533_1742396770_d7995b515279b1c60f99.jpeg

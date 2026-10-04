@@ -294,18 +294,25 @@ def get_next_client_id():
 # ---------------------------------------------------------------------------
 # Products  (Product_model)
 # ---------------------------------------------------------------------------
-def list_products(search="", p_type=None):
+def list_products(search="", p_type=None, asc=False):
     sql = "SELECT * FROM products"
     where, params = [], []
     if p_type:
-        where.append("p_type=%s")
-        params.append(p_type)
+        # Accept a single type or a list/tuple/set of types so callers such
+        # as the Quick Quote page can ask for e.g. Machine + Consumables.
+        if isinstance(p_type, (list, tuple, set)):
+            types = list(p_type)
+            where.append("p_type IN (" + ", ".join(["%s"] * len(types)) + ")")
+            params += types
+        else:
+            where.append("p_type=%s")
+            params.append(p_type)
     if search:
         where.append("(name LIKE %s OR description LIKE %s OR hsn LIKE %s)")
         params += [f"%{search}%"] * 3
     if where:
         sql += " WHERE " + " AND ".join(where)
-    sql += " ORDER BY p_id DESC"
+    sql += " ORDER BY p_id " + ("ASC" if asc else "DESC")
     return DB.query(sql, params)
 
 

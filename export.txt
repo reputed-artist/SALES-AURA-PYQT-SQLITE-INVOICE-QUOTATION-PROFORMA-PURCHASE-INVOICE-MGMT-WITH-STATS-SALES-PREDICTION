@@ -1,0 +1,1 @@
+pyinstaller --noconfirm --clean --onedir --windowed --name "Sales Aura" --icon "icons/sales Aura.ico" --add-data "dist;dist" --add-data "resources;resources" --add-data "icons;icons" --add-data "tools;tools" --hidden-import "PyQt6.sip" --hidden-import "PyQt6.QtSvg" main.py

@@ -11,6 +11,8 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, \
 from database import db_manager
 from ui import widgets as W
 from ui.icons import icon_button
+from ui.pages.master_pages import (ColumnToggleStrip, ExportButtonStrip,
+                                   _generic_export)
 from utils.helpers import money
 
 
@@ -25,6 +27,9 @@ def _to_date(v):
 class TransactionPage(QWidget):
     title = "Transaction"
 
+    HEADERS = ["Sr No", "Client", "Type", "Amount", "Bank",
+               "Payment Date", "Purpose", "Actions"]
+
     def __init__(self, main):
         super().__init__()
         self.main = main
@@ -38,32 +43,41 @@ class TransactionPage(QWidget):
                                    breadcrumb="Transaction Report"))
         box = W.Box("Transactions - Data", "danger")
 
-        bar = QHBoxLayout()
+        # ---- top row: date filter (left) + Add button (right) ----
+        top_row = QHBoxLayout()
         self.dates = W.DateRangeBar(on_change=self.refresh)
-        bar.addWidget(self.dates)
-        self.search = W.SearchBox("Search client / bank / address / mobile / purpose...",
-                                  on_change=self.refresh)
-        bar.addWidget(self.search)
-        bar.addStretch()
+        top_row.addWidget(self.dates)
+        top_row.addStretch()
+
         btn_add = QPushButton("+ Add Transaction")
         btn_add.setObjectName("btnSuccess")
         btn_add.clicked.connect(self._add)
-        bar.addWidget(btn_add)
-        btn_exp = QPushButton("Export CSV")
-        btn_exp.setObjectName("btnDefault")
-        btn_exp.clicked.connect(self._export)
-        bar.addWidget(btn_exp)
+        top_row.addWidget(btn_add)
+        box.addLayout(top_row)
+
+        # ---- search bar: search box pushed to the right corner ----
+        bar = QHBoxLayout()
+        bar.addStretch()
+        self.search = W.SearchBox("Search client / bank / address / mobile / purpose...",
+                                  on_change=self.refresh)
+        bar.addWidget(self.search)
         box.addLayout(bar)
 
-        self.table = W.DataTable(["Sr No", "Client", "Type",
-                                  "Amount", "Bank", "Payment Date", "Purpose",
-                                  "Actions"])
+        # ---- export buttons (centered, red, DataTables style) ----
+        self.export_strip = ExportButtonStrip(self, on_export=self._on_export)
+        box.add(self.export_strip)
+
+        self.table = W.DataTable(self.HEADERS)
         box.add(self.table, 1)
         self.paginator = W.Paginator(on_change=self._render)
         box.add(self.paginator, 0)
         self.totals_label = QLabel("")
         self.totals_label.setStyleSheet("font-weight: 600; color: #444;")
         box.add(self.totals_label)
+
+        # ---- column-toggle strip (bottom-left, blue) ----
+        self.col_toggles = ColumnToggleStrip(self, self.HEADERS, self.table)
+        box.add(self.col_toggles)
         lay.addWidget(box, 1)
         self._rows = []
         self.refresh()
@@ -181,11 +195,31 @@ class TransactionPage(QWidget):
             db_manager.delete_transaction(r["pay_id"])
             self.refresh()
 
-    def _export(self):
-        W.export_csv(self,
-                     ["Client", "Amount", "Bank", "Date", "Purpose"],
-                     [[r["c_name"] or r["cid"], r["amount"],
-                       r["bank"], str(r["dateofpayment"]), r["purpose"]]
-                      for r in getattr(self, "_rows", [])],
-                     default_name="transactions.csv")
+    def _on_export(self, kind):
+        rows = []
+        for i, r in enumerate(getattr(self, "_rows", [])):
+            rows.append({
+                "sr": i + 1,
+                "client": r["c_name"] or r["cid"],
+                "type": "Supplier" if r.get("u_type") == 1 else "Customer",
+                "amount": r["amount"],
+                "bank": r["bank"],
+                "dateofpayment": str(r["dateofpayment"]),
+                "purpose": r["purpose"],
+                "cid": r["cid"],
+            })
+        columns = [
+            ("sr", "Sr No"),
+            ("client", "Client"),
+            ("type", "Type"),
+            ("amount", "Amount"),
+            ("bank", "Bank"),
+            ("dateofpayment", "Payment Date"),
+            ("purpose", "Purpose"),
+        ]
+        _generic_export(
+            self, kind, rows, columns,
+            filename_stub="transactions",
+            sql_table="paidhistory",
+            sql_cols=["cid", "amount", "bank", "dateofpayment", "purpose"])
 

@@ -20,6 +20,9 @@ from database import db_manager
 from ui import widgets as W
 from utils.helpers import money
 from utils import dashboard_cache
+from config import UPLOAD_DIR as _CFG_UPLOAD_DIR, user_data_dir as _user_data_dir
+
+_USER_DATA_DIR = _user_data_dir()
 
 
 # --------------------------------------------------------------------------- #
@@ -40,17 +43,28 @@ def _app_base_dir() -> str:
 
 APP_BASE   = _app_base_dir()
 IMG_DIR    = os.path.join(APP_BASE, "dist", "img")
-UPLOAD_DIR = os.path.join(IMG_DIR, "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Where uploads are WRITTEN. This is deliberately NOT the folder above: in a
+# frozen build IMG_DIR points inside `Program Files\Sales Aura\internal`,
+# which is read-only for a normal user, so saving the profile picture or the
+# company logo there failed with "[Errno 13] Permission denied".
+# config.UPLOAD_DIR resolves to %LOCALAPPDATA%\Sales Aura\uploads when frozen
+# and to the project's own dist/img/uploads when running from source.
+UPLOAD_DIR = _CFG_UPLOAD_DIR
 
 
 # `admin.picture` only stores a bare file name, and the picture may physically
 # sit in this project's dist/img/uploads OR in the original CodeIgniter project's
 # public/dist/img/uploads. Search them all so the avatar always resolves.
+# The writable folder is searched FIRST (that is where a new upload lands),
+# and the read-only locations are kept so pictures uploaded by an older build,
+# or by the PHP app, still display.
 _ORIG_PROJECT_ROOT = os.path.join(os.path.dirname(APP_BASE), "C4")
 _UPLOAD_DIRS = [
     UPLOAD_DIR,
+    os.path.join(_USER_DATA_DIR, "uploads"),
     IMG_DIR,
+    os.path.join(APP_BASE, "dist", "img", "uploads"),
     os.path.join(_ORIG_PROJECT_ROOT, "public", "dist", "img", "uploads"),
     os.path.join(_ORIG_PROJECT_ROOT, "public", "dist", "img"),
     os.path.join(_ORIG_PROJECT_ROOT, "public", "uploads"),
@@ -986,7 +1000,7 @@ class SettingsPage(QWidget):
                 pass
             W.info(self, "Profile picture updated.")
         except Exception as exc:
-            W.error(self, f"Upload failed: {exc}")
+            W.error(self, "Upload failed: %s\n\nSaving to:\n%s" % (exc, UPLOAD_DIR))
 
     def _upload_company_logo(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -1003,7 +1017,7 @@ class SettingsPage(QWidget):
             self._refresh_logo()
             W.info(self, "Company logo updated.")
         except Exception as exc:
-            W.error(self, f"Upload failed: {exc}")
+            W.error(self, "Upload failed: %s\n\nSaving to:\n%s" % (exc, UPLOAD_DIR))
 
     # =====================================================================
     #  Backup / restore

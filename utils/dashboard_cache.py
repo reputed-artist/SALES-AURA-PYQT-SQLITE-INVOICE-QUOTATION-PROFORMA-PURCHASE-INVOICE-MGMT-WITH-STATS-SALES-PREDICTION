@@ -96,7 +96,11 @@ def cached(key, ttl, live, default=None, on_error=None):
             on_error(exc)
         return default
     cache.set(key, default if val is None else val, ttl=ttl)
-    return val
+    # Return the same value that was cached. A live query that yields None
+    # (empty result set) must hand back `default`, not None - otherwise the
+    # first cold paint gets None while every later paint gets the default,
+    # and callers like donuts' set_data(None) blow up only on that first call.
+    return default if val is None else val
 
 
 # ------------------------------------------------------------------ getters

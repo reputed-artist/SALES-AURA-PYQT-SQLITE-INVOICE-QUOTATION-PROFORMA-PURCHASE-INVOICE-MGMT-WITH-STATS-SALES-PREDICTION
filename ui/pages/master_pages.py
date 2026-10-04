@@ -191,7 +191,7 @@ class DTFooter(QWidget):
 
 
 # --------------------------------------------------------------------------- #
-# Column-toggle strip (bottom-RIGHT, black buttons)
+# Column-toggle strip (bottom-LEFT, blue buttons)
 # --------------------------------------------------------------------------- #
 class ColumnToggleStrip(QWidget):
     def __init__(self, parent, headers, table):
@@ -200,19 +200,18 @@ class ColumnToggleStrip(QWidget):
         h = QHBoxLayout(self)
         h.setContentsMargins(0, 8, 0, 0)
         h.setSpacing(4)
-        h.addStretch()
 
         for i, label in enumerate(headers):
             b = QPushButton(label)
             b.setFixedHeight(26)
             b.setCursor(Qt.CursorShape.PointingHandCursor)
             b.setStyleSheet(
-                "QPushButton { background:#222222; color:#ffffff;"
-                " border:1px solid #000000; border-radius:3px;"
+                "QPushButton { background:#3c8dbc; color:#ffffff;"
+                " border:1px solid #367fa9; border-radius:3px;"
                 " padding:2px 10px; font-size:11.5px; }"
-                "QPushButton:hover { background:#3a3a3a; }"
-                "QPushButton:checked { background:#000000;"
-                " border-color:#000000; color:#ffffff; }"
+                "QPushButton:hover { background:#367fa9; }"
+                "QPushButton:checked { background:#3c8dbc;"
+                " border-color:#367fa9; color:#ffffff; }"
                 "QPushButton:!checked { background:#888888;"
                 " border-color:#555555; }")
             b.setCheckable(True)
@@ -220,6 +219,8 @@ class ColumnToggleStrip(QWidget):
             b.toggled.connect(
                 lambda on, col=i: table.setColumnHidden(col, not on))
             h.addWidget(b)
+
+        h.addStretch()
 
 
 # --------------------------------------------------------------------------- #
@@ -634,7 +635,7 @@ class ClientMasterPage(QWidget):
         self.footer = DTFooter(self, on_goto=self._goto_page)
         body.addWidget(self.footer)
 
-        # ---- column-toggle strip (bottom-right) ----
+        # ---- column-toggle strip (bottom-left) ----
         self.col_toggles = ColumnToggleStrip(self, self.HEADERS, self.table)
         body.addWidget(self.col_toggles)
 
@@ -1024,7 +1025,7 @@ class ProductsPage(QWidget):
         self.footer = DTFooter(self, on_goto=self._goto_page)
         body.addWidget(self.footer)
 
-        # ---- column toggles (bottom-right) ----
+        # ---- column toggles (bottom-left) ----
         self.col_toggles = ColumnToggleStrip(self, self.HEADERS, self.table)
         body.addWidget(self.col_toggles)
 
