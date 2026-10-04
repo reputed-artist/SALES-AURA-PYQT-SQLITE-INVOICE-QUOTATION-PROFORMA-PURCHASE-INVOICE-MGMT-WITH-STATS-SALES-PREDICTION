@@ -245,6 +245,13 @@ class SplashScreen(QWidget):
             (1.00, "Ready"),
         ]
 
+        # While held, reaching 100% parks the splash at "Ready" instead of
+        # closing. main.py holds it until the dashboard prefetch thread has
+        # finished (or a timeout expires) so the dashboard the user lands on
+        # is served from a warm cache. Purely a timing gate - the splash is
+        # painted and laid out exactly the same either way.
+        self._held = False
+
         # ---- logo ----
         self._logo_pm: QPixmap | None = self._resolve_logo()
 
@@ -330,6 +337,26 @@ class SplashScreen(QWidget):
         self.update()
 
         if self._progress >= 1.0:
+            if self._held:
+                # Parked: keep the "Ready" frame on screen and wait for
+                # release_finish(). Do not stack up fade-out timers.
+                self._timer.stop()
+            else:
+                self._begin_fade_out()
+
+    # ------------------------------------------------------------------ #
+    # Hold gate (used by main.py to cover the dashboard prefetch)
+    # ------------------------------------------------------------------ #
+    def hold(self) -> None:
+        """Stop the splash from closing on its own once it reaches 100%."""
+        self._held = True
+
+    def release_finish(self) -> None:
+        """Let a held splash close (starts the fade-out immediately)."""
+        self._held = False
+        if self._fade_in.isActive():
+            self._fade_in.stop()
+        if self.isVisible():
             self._begin_fade_out()
 
     # ------------------------------------------------------------------ #

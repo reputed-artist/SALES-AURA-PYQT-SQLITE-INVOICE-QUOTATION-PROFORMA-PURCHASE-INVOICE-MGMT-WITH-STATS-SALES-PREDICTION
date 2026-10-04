@@ -668,7 +668,7 @@ def export_csv(parent, headers, rows, default_name="export.csv", mode="csv"):
             printer = QPrinter(QPrinter.PrinterMode.HighResolution)
             printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
             printer.setOutputFileName(path)
-            doc.print_(printer)
+            doc.print(printer)
 
         else:
             error(parent, f"Unsupported export mode: {mode}")
@@ -878,8 +878,22 @@ class FormDialog(QDialog):
                 if cur is not None:
                     idx = w.findData(cur)
                     if idx < 0:
-                        w.addItem(str(cur), cur)
-                        idx = w.findData(cur)
+                        # No exact data match. Before appending the value as a
+                        # new row, check whether it is already present as the
+                        # visible text or as an equivalent string - otherwise
+                        # the combo ends up listing e.g. "IGST, Loc, Loc".
+                        # Appending is a genuine last resort, for a value that
+                        # is not in the option list at all.
+                        already = w.findText(str(cur)) >= 0
+                        if not already:
+                            for i in range(w.count()):
+                                if str(w.itemData(i)) == str(cur):
+                                    already = True
+                                    idx = i
+                                    break
+                        if not already:
+                            w.addItem(str(cur), cur)
+                            idx = w.findData(cur)
                     w.setCurrentIndex(max(0, idx))
             elif kind == "image":
                 w = ImagePickerField(values.get(key, ""))

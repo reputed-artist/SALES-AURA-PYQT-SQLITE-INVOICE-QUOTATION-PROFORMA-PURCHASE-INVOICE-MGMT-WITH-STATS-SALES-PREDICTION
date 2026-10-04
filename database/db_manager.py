@@ -6,30 +6,36 @@ Tables are the exact schema from db.sql:
   bankdetails, paidhistory, invtest/invtest2 (tax), protest/protest2 (proforma),
   quote/quote2, purchaseinv/purchaseinv2, quickquote, delivery_addresses
 """
+import threading
+
 import pymysql
 
 from datetime import date
 
 from config import DB_CONFIG
 
-_CONN = None
+# One pymysql connection PER THREAD. A single shared connection is not safe to
+# use from two threads at once (pymysql cursors/state are connection-bound), and
+# the splash screen prefetches dashboard rows on a worker thread while the UI
+# thread is still alive - sharing one handle there corrupts results.
+_CONN_LOCAL = threading.local()
 
 
 def get_connection():
-    """Persistent shared connection (single-threaded UI): avoids the per-query
-    connect cost that caused UI freezes; pings/reconnects transparently."""
-    global _CONN
-    if _CONN is not None:
+    """Persistent per-thread connection: avoids the per-query connect cost that
+    caused UI freezes; pings/reconnects transparently."""
+    conn = getattr(_CONN_LOCAL, "conn", None)
+    if conn is not None:
         try:
-            _CONN.ping(reconnect=True)
-            return _CONN
+            conn.ping(reconnect=True)
+            return conn
         except Exception:
             try:
-                _CONN.close()
+                conn.close()
             except Exception:
                 pass
-            _CONN = None
-    _CONN = pymysql.connect(
+            _CONN_LOCAL.conn = None
+    conn = pymysql.connect(
         host=DB_CONFIG["host"],
         port=DB_CONFIG["port"],
         user=DB_CONFIG["user"],
@@ -40,7 +46,8 @@ def get_connection():
         autocommit=True,
         connect_timeout=3,
     )
-    return _CONN
+    _CONN_LOCAL.conn = conn
+    return conn
 
 
 _INDEXES_READY = False
@@ -67,6 +74,11 @@ def _indexed(columns=()):
             have = {(r["t"], r["c"]) for r in rows}
             for c in missing:
                 _INDEX_CACHE[c] = c in have
+        # Short-circuit when every column is already cached. Without this the
+        # empty `missing` list produced "IN ()", which is a MySQL syntax error;
+        # the except branch swallowed it and returned True, so the function
+        # "worked" by accident while firing a pointless failing query on the
+        # UI thread for every chart on every dashboard load.
         return all(_INDEX_CACHE.get(c, False) for c in columns)
     except Exception:
         return True  # assume DDL path worked; SQL fallback raises if not
@@ -114,6 +126,14 @@ def ensure_dashboard_indexes():
                     have and int(have[0]["n"] or 0) > 0)
         except Exception:
             pass  # best effort - charts have Python-join fallbacks
+
+    # client.cid and invtest2.cid are primary keys, so they are indexed by
+    # definition and need no DDL. Seed them directly: location_tree() asks for
+    # them on every dashboard load, and without this each load re-queried
+    # INFORMATION_SCHEMA for the same two columns.
+    _INDEX_CACHE[("client", "cid")] = True
+    _INDEX_CACHE[("invtest2", "cid")] = True
+
     _INDEXES_READY = True
 
 
@@ -138,7 +158,20 @@ class DB:
         with conn.cursor() as cur:
             cur.execute(sql, params or ())
             conn.commit()
-            return cur.lastrowid if return_id else cur.rowcount
+            result = cur.lastrowid if return_id else cur.rowcount
+        # Any INSERT/UPDATE/DELETE can move a dashboard KPI or chart, and the
+        # splash screen now pre-warms those queries into utils.cache. Dropping
+        # the cache here (the single choke point for every write in the app)
+        # guarantees the next dashboard render re-queries instead of showing
+        # numbers from before the edit. DDL statements are left alone.
+        head = sql.lstrip()[:6].upper()
+        if head.startswith(("INSERT", "UPDATE", "DELETE", "REPLAC")):
+            try:
+                from utils.dashboard_cache import invalidate_dashboard
+                invalidate_dashboard()
+            except Exception:
+                pass  # never let cache bookkeeping break a save
+        return result
 
     @staticmethod
     def scalar(sql, params=None, default=0):
@@ -421,7 +454,8 @@ def get_delivery_address(invid):
 def list_invoices(doc, start_date=None, end_date=None, search="", client_id=None):
     reg = DOC_REGISTRY[doc]
     dc = reg["date_col"]
-    sql = (f"SELECT m.*, c.c_name, c.mob, c.gst, c.c_add FROM {reg['master']} m"
+    sql = (f"SELECT m.*, m.{dc} AS doc_date, c.c_name, c.mob, c.gst, c.c_add"
+           f" FROM {reg['master']} m"
            f" LEFT JOIN client c ON c.cid = m.cid")
     where, params = [], []
     if start_date:

@@ -615,6 +615,55 @@ def _build_tax_summary(c_type, taxrate, taxamount, subtotal, totalamount,
 
 
 # =========================================================================== #
+# Shared invoice page CSS  (centered on A4)
+#
+# NOTE: we do NOT use `table-layout: fixed` here because the invoice tables
+# rely on <col width="..."> hints to size their 8 columns. Forcing fixed
+# layout overrides those hints and breaks the tax / purchase layouts.
+#
+# Centering works because:
+#   1. body uses flexbox to center its child.
+#   2. table.invoice uses margin auto for horizontal centering.
+#   3. The sticker image is constrained to width:100% so it can't force
+#      the table wider than A4.
+# =========================================================================== #
+_INVOICE_PAGE_CSS = """
+  @page { size: A4 portrait; margin: 0; }
+  html, body {
+      margin: 0; padding: 0; background: #ffffff;
+      width: 100%;
+  }
+  body {
+      font-family: calibri, 'Segoe UI', Arial, sans-serif;
+      font-size: 10pt; color: #000000;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+  }
+  td { padding-left: 2px; }
+  table { border-collapse: collapse; }
+  img { image-rendering: -webkit-optimize-contrast; }
+  page {
+      display: block;
+      width: 21cm;
+      min-height: 29.7cm;
+      background: white;
+      margin: 0 auto;
+      padding: 0;
+  }
+  table.invoice {
+      margin: 10px auto 0 auto;
+  }
+  table.invoice img.sticker {
+      display: block;
+      max-width: 788px;
+      width: 100%;
+      height: auto;
+  }
+"""
+
+
+# =========================================================================== #
 # TAX / PROFORMA INVOICE
 # =========================================================================== #
 def build_tax_invoice_html(doc, master, items, admin=None, banks=None,
@@ -644,35 +693,42 @@ def build_tax_invoice_html(doc, master, items, admin=None, banks=None,
 
     parts = []
     parts.append(f"""<html><head><meta charset="utf-8"><style>
-      @page {{ size: A4 portrait; margin: 0; }}
-      html, body {{ margin:0; padding:0; background:#ffffff; }}
-      body {{ font-family:calibri, 'Segoe UI', Arial, sans-serif;
-              font-size:10pt; color:#000000; }}
-      td {{ padding-left:2px; }}
-      table {{ border-collapse:collapse; }}
-      img {{ image-rendering: -webkit-optimize-contrast; }}
-      page {{ display:block; width:21cm; height:29.7cm; background:white;
-              margin:0; padding:0; }}
+      {_INVOICE_PAGE_CSS}
     </style></head><body>
     <page size="A4">
-    <table width="816" height="1056" cellpadding="0" cellspacing="0"
-           style="font-family:calibri; margin-top:10px;" align="center">
+    <table class="invoice" width="790" height="1056" cellpadding="0"
+           cellspacing="0" style="font-family:calibri;">
       <col width="31" /><col width="201" /><col width="61" /><col width="87" />
       <col width="72" /><col width="77" /><col width="57" /><col width="73" />
 
       <tr height="13">
         <td height="13" colspan="8" style="{_TD}">
-          <img src="{sticker}" height="200px" width="870px"/></td>
+          <img class="sticker" src="{sticker}" alt="sticker"/></td>
       </tr>
 
       <tr height="26">
         <td colspan="8" height="24"
-            style="border:1px solid black;border-bottom:0px;font-size:20px;">
-          <div style="float: left">
-            <b>&nbsp; GSTIN:&nbsp; {_h(admin.get('gst'))} </b>
-            <strong style="font-size:24px; margin-left: 100px;">{title}</strong>
-            <b style="padding-left:120px;">&nbsp; IEC:&nbsp; {_h(admin.get('pan'))} </b>
-          </div></td>
+            style="border:1px solid black;border-bottom:0px;font-size:20px;
+                   padding:0;">
+          <!-- Three real columns instead of one float with hard-coded
+               pixel gaps: a longer title ("Proforma Invoice", "Purchase
+               Invoice") used to push the IEC value onto a second line,
+               because the gaps were fixed at 100px/120px regardless of how
+               wide the title actually was. Percentage widths let all three
+               stay on one line for every document type. -->
+          <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                 style="font-size:20px;">
+            <col width="34%" /><col width="32%" /><col width="34%" />
+            <tr>
+              <td style="border:none;padding:0 4px;"
+                  ><b>&nbsp; GSTIN:&nbsp; {_h(admin.get('gst'))}</b></td>
+              <td style="border:none;padding:0;text-align:center;"
+                  ><strong style="font-size:24px;">{title}</strong></td>
+              <td style="border:none;padding:0 4px;text-align:right;"
+                  ><b>IEC:&nbsp; {_h(admin.get('pan'))}</b></td>
+            </tr>
+          </table>
+        </td>
       </tr>
       <tr height="13">
         <td height="13" colspan="8" style="{_TD}">&nbsp;</td>
@@ -859,19 +915,11 @@ def build_purchase_invoice_html(master, items, admin=None, buyer=None):
 
     parts = []
     parts.append(f"""<html><head><meta charset="utf-8"><style>
-      @page {{ size: A4 portrait; margin: 0; }}
-      html, body {{ margin:0; padding:0; background:#ffffff; }}
-      body {{ font-family:calibri, 'Segoe UI', Arial, sans-serif;
-              font-size:10pt; color:#000000; }}
-      td {{ padding-left:2px; }}
-      table {{ border-collapse:collapse; }}
-      img {{ image-rendering: -webkit-optimize-contrast; }}
-      page {{ display:block; width:21cm; height:29.7cm; background:white;
-              margin:0; padding:0; }}
+      {_INVOICE_PAGE_CSS}
     </style></head><body>
     <page size="A4">
-    <table width="816" height="1056" cellpadding="0" cellspacing="0"
-           style="font-family:calibri; margin-top:10px;" align="center">
+    <table class="invoice" width="790" height="1056" cellpadding="0"
+           cellspacing="0" style="font-family:calibri;">
       <col width="31" /><col width="201" /><col width="61" /><col width="87" />
       <col width="72" /><col width="77" /><col width="57" /><col width="73" />
 
@@ -2107,7 +2155,7 @@ def show_print_preview(parent, doc, master, items, cattype="", debug=False):
     doc_html.setHtml(build_invoice_html(doc, master, items))
 
     def render(printer_):
-        doc_html.print_(printer_)
+        doc_html.print(printer_)
 
     preview.paintRequested.connect(render)
     preview.exec()
@@ -2184,7 +2232,7 @@ def show_ledger_print_preview(parent, client_name, fy, data):
     doc_html.setHtml(html)
 
     def render(printer_):
-        doc_html.print_(printer_)
+        doc_html.print(printer_)
 
     preview.paintRequested.connect(render)
     preview.exec()

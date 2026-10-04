@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
 from database import db_manager
 from ui import widgets as W
 from utils.helpers import money
+from utils import dashboard_cache
 
 
 # --------------------------------------------------------------------------- #
@@ -43,13 +44,40 @@ UPLOAD_DIR = os.path.join(IMG_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
+# `admin.picture` only stores a bare file name, and the picture may physically
+# sit in this project's dist/img/uploads OR in the original CodeIgniter project's
+# public/dist/img/uploads. Search them all so the avatar always resolves.
+_ORIG_PROJECT_ROOT = os.path.join(os.path.dirname(APP_BASE), "C4")
+_UPLOAD_DIRS = [
+    UPLOAD_DIR,
+    IMG_DIR,
+    os.path.join(_ORIG_PROJECT_ROOT, "public", "dist", "img", "uploads"),
+    os.path.join(_ORIG_PROJECT_ROOT, "public", "dist", "img"),
+    os.path.join(_ORIG_PROJECT_ROOT, "public", "uploads"),
+]
+
+
 def _resolve_upload(name: str) -> str:
     if not name:
         return ""
     v = str(name).strip().replace("\\", "/")
-    base = os.path.basename(v)
-    candidate = os.path.join(UPLOAD_DIR, base)
-    return candidate if os.path.isfile(candidate) else ""
+    if not v:
+        return ""
+    if os.path.isfile(v):
+        return os.path.abspath(v)
+
+    rel_parts = [p for p in v.split("/") if p not in ("", ".", "..")]
+    if not rel_parts:
+        return ""
+    basename = rel_parts[-1]
+    for folder in _UPLOAD_DIRS:
+        candidate = os.path.join(folder, *rel_parts)
+        if os.path.isfile(candidate):
+            return candidate
+        candidate = os.path.join(folder, basename)
+        if os.path.isfile(candidate):
+            return candidate
+    return ""
 
 
 def _resolve_image(name: str) -> str:
@@ -733,19 +761,24 @@ class SettingsPage(QWidget):
         self.p_prof_lbl.setText(admin.get("profession", "") or "")
 
         # ---- stats ----
-        try:
-            stats = db_manager.get_dashboard_stats()
-        except Exception:
-            stats = {}
+        # NOTE: the function in db_manager is `dashboard_stats()`. This used to
+        # call a non-existent `get_dashboard_stats()`, whose AttributeError was
+        # swallowed by the `except` below - leaving `stats` empty and every
+        # counter stuck at 0. Served through dashboard_cache.cached() so the
+        # value the splash screen already prefetched is reused, and re-queried
+        # when the cache is cold or was invalidated by a save.
+        stats = dashboard_cache.cached(
+            dashboard_cache.stats_key(), dashboard_cache.TTL_KPI,
+            db_manager.dashboard_stats, default={}) or {}
 
-        # map card keys to the keys your db_manager returns.
-        # change the right-hand side strings if your API uses other names.
+        # Card key -> key returned by db_manager.dashboard_stats().
+        # "Sales"/"Purchases" are rupee amounts (the card formats them with
+        # money()), so they map to *_amount and NOT to the document counts.
         stat_sources = {
             "clients":   stats.get("clients", 0),
             "products":  stats.get("products", 0),
-            "sales":     stats.get("sales", stats.get("sales_amount", 0)),
-            "purchases": stats.get("purchases",
-                                   stats.get("purchase_amount", 0)),
+            "sales":     stats.get("sales_amount", 0),
+            "purchases": stats.get("purchase_amount", 0),
         }
         for key, val in stat_sources.items():
             try:
@@ -944,6 +977,13 @@ class SettingsPage(QWidget):
                                     {"picture": name})
             self._picture_name = name
             self._refresh_avatar()
+            # Keep the three shell avatars in sync as well: sidebar user-panel,
+            # the blue header account button and (built from self.admin, so it
+            # inherits the refreshed row) the account dropdown.
+            try:
+                self.main.refresh_user_avatar()
+            except Exception:
+                pass
             W.info(self, "Profile picture updated.")
         except Exception as exc:
             W.error(self, f"Upload failed: {exc}")

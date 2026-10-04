@@ -800,15 +800,27 @@ class DashboardPage(QWidget):
 
     # ------------------------------------------------------------------ #
     def refresh(self):
-        try:
-            db_manager.ensure_dashboard_indexes()
-        except Exception:
-            pass
-        try:
-            stats = db_manager.dashboard_stats()
-        except Exception as exc:
-            W.error(self, f"Database error: {exc}")
-            return
+        # Every value below is read through dashboard_cache.cached(): the splash
+        # screen already ran these queries on a worker thread, so the first
+        # render after login is served from memory. A cold key (different
+        # year/FY picked, TTL expired, prefetch failed) falls back to the exact
+        # same live query as before, so behaviour is unchanged.
+        dc = dashboard_cache
+
+        year = self.year_combo.currentData()
+        fylab = self.fy_combo.currentData() or ""
+        sy = int(str(fylab).split("-")[0]) if fylab else date.today().year - 1
+        ey = sy + 1
+
+        stats = dc.cached(dc.stats_key(), dc.TTL_KPI,
+                          db_manager.dashboard_stats, default=None)
+        if not stats:
+            # Cold cache and the live query failed - report it like before.
+            try:
+                stats = db_manager.dashboard_stats()
+            except Exception as exc:
+                W.error(self, f"Database error: {exc}")
+                return
         for key, box in self.infoboxes.items():
             if key == "received_amount":
                 box.set_value(money(stats["received_amount"]))
@@ -824,31 +836,34 @@ class DashboardPage(QWidget):
         self.bar_purchase.set(purch_pct)
         self.bar_quote.set(quote_pct)
 
-        year = self.year_combo.currentData()
-        self.chart.set_values(
-            db_manager.monthly_sales("invtest2", "created", year))
+        self.chart.set_values(dc.cached(
+            dc.monthly_key(year), dc.TTL_CHART,
+            lambda: db_manager.monthly_sales("invtest2", "created", year),
+            default=[0] * 12))
 
         self.recent_table.clear_rows()
-        for r in db_manager.recent_invoices("tax", 8):
+        for r in dc.cached(dc.recent_key("tax", 8), dc.TTL_FAST,
+                           lambda: db_manager.recent_invoices("tax", 8),
+                           default=[]):
             self.recent_table.add_row([
                 r["invid"], r["c_name"] or "", str(r["doc_date"]),
                 r["totalitems"], money(r["subtotal"]),
                 f"{float(r['taxrate']):g}%",
                 money(r["taxamount"]), money(r["totalamount"])])
 
-        try:
-            cms = db_manager.current_month_stats()
-        except Exception as exc:
-            W.error(self, f"Dashboard stats error: {exc}")
-            return
+        cms = dc.cached(dc.month_key(), dc.TTL_KPI,
+                        db_manager.current_month_stats, default=None)
+        if not cms:
+            try:
+                cms = db_manager.current_month_stats()
+            except Exception as exc:
+                W.error(self, f"Dashboard stats error: {exc}")
+                return
         self.small_boxes["invcount"].set_value(cms["invcount"])
         self.small_boxes["bounce_rate"].set_value(f"{cms['bounce_rate']:.1f}%")
         self.small_boxes["clientcount"].set_value(cms["clientcount"])
         self.small_boxes["monthturn"].set_value(money(cms["monthturn"]))
 
-        fylab = self.fy_combo.currentData() or ""
-        sy = int(str(fylab).split("-")[0]) if fylab else date.today().year - 1
-        ey = sy + 1
         donut_sources = {
             "consumables": lambda: db_manager.donut_consumables(sy, ey),
             "user_category": db_manager.donut_user_category,
@@ -859,14 +874,14 @@ class DashboardPage(QWidget):
             "client_type": db_manager.donut_client_type,
         }
         for key, fn in donut_sources.items():
-            try:
-                self.donuts[key].set_data(fn())
-            except Exception:
-                self.donuts[key].set_data([])
+            self.donuts[key].set_data(dc.cached(
+                dc.donut_key(key, sy, ey), dc.TTL_CHART, fn, default=[]))
 
         self.reminder_table.clear_rows()
         try:
-            for i, r in enumerate(db_manager.client_reminder(), 1):
+            for i, r in enumerate(dc.cached(
+                    dc.reminder_key("clients"), dc.TTL_FAST,
+                    db_manager.client_reminder, default=[]), 1):
                 self.reminder_table.add_row([
                     i, r["invid"], r["c_name"] or "", r["item_name"] or "",
                     r["mob"] or ""])
@@ -875,7 +890,9 @@ class DashboardPage(QWidget):
 
         self.qq_table.clear_rows()
         try:
-            for i, r in enumerate(db_manager.quickquote_reminder(), 1):
+            for i, r in enumerate(dc.cached(
+                    dc.reminder_key("quickquote"), dc.TTL_FAST,
+                    db_manager.quickquote_reminder, default=[]), 1):
                 self.qq_table.add_row([
                     i, r["q_id"], r["name"] or "", r["mob"] or "",
                     r["quantity"], money(r["subtotal"]), money(r["gst"]),
@@ -893,10 +910,10 @@ class DashboardPage(QWidget):
             return
         sy = int(str(fylab).split("-")[0])
         ey = sy + 1
-        try:
-            rows = db_manager.fy_sales_chart(sy, ey)
-        except Exception as exc:
-            W.error(self, f"FY chart error: {exc}")
-            rows = []
-        title = f"Apr {sy} - Mar {ey}"
-        self.fy_chart.set_data(rows, title)
+        dc = dashboard_cache
+        rows = dc.cached(dc.fy_sales_key(sy, ey), dc.TTL_CHART,
+                         lambda: db_manager.fy_sales_chart(sy, ey),
+                         default=[],
+                         on_error=lambda exc: W.error(
+                             self, f"FY chart error: {exc}"))
+        self.fy_chart.set_data(rows, f"Apr {sy} - Mar {ey}")
