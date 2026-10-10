@@ -14,10 +14,8 @@ from ui import widgets as W
 from ui.icons import icon_button
 from ui.pages.master_pages import (ColumnToggleStrip, ExportButtonStrip,
                                    _generic_export)
-from utils.helpers import money
-from ui.pages.master_pages import ExportButtonStrip, ColumnToggleStrip, \
-    _generic_export
 from ui.pages.reports_page import _apply_column_layout, _ViewportRelayout
+from utils.helpers import money
 
 # Column keys behind HEADERS[1:] - index 0 ('Sr No') is display-only.  Used by
 # the shared width logic in reports_page to size each column from its content.
@@ -50,32 +48,22 @@ class TransactionPage(QWidget):
                                    breadcrumb="Transaction Report"))
         box = W.Box("Transactions - Data", "danger")
 
-<<<<<<< HEAD
-        # ---- row 1: "+ Add Transaction" pinned to the RIGHT corner ----
-        add_row = QHBoxLayout()
-        add_row.addStretch()
-=======
-        # ---- top row: date filter (left) + Add button (right) ----
+        # ---- row 1: date filter (left) + "+ Add Transaction" (right) ----
         top_row = QHBoxLayout()
         self.dates = W.DateRangeBar(on_change=self.refresh)
         top_row.addWidget(self.dates)
         top_row.addStretch()
 
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
         btn_add = QPushButton("+ Add Transaction")
         btn_add.setObjectName("btnSuccess")
         btn_add.setFixedHeight(30)
         btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_add.clicked.connect(self._add)
-<<<<<<< HEAD
-        add_row.addWidget(btn_add)
-        box.addLayout(add_row)
+        top_row.addWidget(btn_add)
+        box.addLayout(top_row)
 
-        # ---- row 2: date range on the left, search box shifted RIGHT ----
+        # ---- row 2: search box pushed to the right corner ----
         bar = QHBoxLayout()
-        bar.setSpacing(8)
-        self.dates = W.DateRangeBar(on_change=self.refresh)
-        bar.addWidget(self.dates)
         bar.addStretch()
         self.search = W.SearchBox(
             "Search client / bank / address / mobile / purpose...",
@@ -84,52 +72,31 @@ class TransactionPage(QWidget):
         bar.addWidget(self.search, 0, Qt.AlignmentFlag.AlignVCenter)
         box.addLayout(bar)
 
-        # ---- export buttons (centered strip, same as the master pages) ----
-        self.export_strip = ExportButtonStrip(
-            self, on_export=self._on_export)
+        # ---- export buttons (centered, red, DataTables style) ----
+        self.export_strip = ExportButtonStrip(self, on_export=self._on_export)
         box.add(self.export_strip, 0)
 
-        self.HEADERS = ["Sr No", "Client", "Type",
-                        "Amount", "Bank", "Payment Date", "Purpose",
-                        "Actions"]
+        # ---- table ----
         self.table = W.DataTable(self.HEADERS)
         # size each column from its content, and re-divide the width whenever
         # the table viewport is resized (same rule the report pages use)
         self._relayout_watch = _ViewportRelayout(
             self.table, self._relayout_columns)
-=======
-        top_row.addWidget(btn_add)
-        box.addLayout(top_row)
-
-        # ---- search bar: search box pushed to the right corner ----
-        bar = QHBoxLayout()
-        bar.addStretch()
-        self.search = W.SearchBox("Search client / bank / address / mobile / purpose...",
-                                  on_change=self.refresh)
-        bar.addWidget(self.search)
-        box.addLayout(bar)
-
-        # ---- export buttons (centered, red, DataTables style) ----
-        self.export_strip = ExportButtonStrip(self, on_export=self._on_export)
-        box.add(self.export_strip)
-
-        self.table = W.DataTable(self.HEADERS)
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
         box.add(self.table, 1)
+
+        # ---- paginator ----
         self.paginator = W.Paginator(on_change=self._render)
         box.add(self.paginator, 0)
+
+        # ---- totals label ----
+        self.totals_label = QLabel("")
+        self.totals_label.setStyleSheet("font-weight: 600; color: #444;")
+        box.add(self.totals_label)
 
         # ---- column toggles (bottom-left, blue - same as the master pages) ----
         self.col_toggles = ColumnToggleStrip(self, self.HEADERS, self.table)
         box.add(self.col_toggles, 0)
 
-        self.totals_label = QLabel("")
-        self.totals_label.setStyleSheet("font-weight: 600; color: #444;")
-        box.add(self.totals_label)
-
-        # ---- column-toggle strip (bottom-left, blue) ----
-        self.col_toggles = ColumnToggleStrip(self, self.HEADERS, self.table)
-        box.add(self.col_toggles)
         lay.addWidget(box, 1)
         self._rows = []
         self.refresh()
@@ -297,12 +264,7 @@ class TransactionPage(QWidget):
             self.refresh()
 
     def _on_export(self, kind):
-<<<<<<< HEAD
         """Multi-format export of the currently filtered transactions."""
-        columns = [
-            ("c_name", "Client"),
-            ("client_type", "Type"),
-=======
         rows = []
         for i, r in enumerate(getattr(self, "_rows", [])):
             rows.append({
@@ -315,32 +277,19 @@ class TransactionPage(QWidget):
                 "purpose": r["purpose"],
                 "cid": r["cid"],
             })
+
         columns = [
             ("sr", "Sr No"),
             ("client", "Client"),
             ("type", "Type"),
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
             ("amount", "Amount"),
             ("bank", "Bank"),
             ("dateofpayment", "Payment Date"),
             ("purpose", "Purpose"),
         ]
-<<<<<<< HEAD
 
-        # `client_type` is derived for display only - the raw rows carry
-        # `u_type`, which the _render() table also maps to a label.
-        rows = []
-        for r in getattr(self, "_rows", []):
-            row = dict(r)
-            row["client_type"] = ("Supplier" if r.get("u_type") == 1
-                                  else "Customer")
-            rows.append(row)
-
-=======
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
         _generic_export(
             self, kind, rows, columns,
             filename_stub="transactions",
             sql_table="paidhistory",
             sql_cols=["cid", "amount", "bank", "dateofpayment", "purpose"])
-

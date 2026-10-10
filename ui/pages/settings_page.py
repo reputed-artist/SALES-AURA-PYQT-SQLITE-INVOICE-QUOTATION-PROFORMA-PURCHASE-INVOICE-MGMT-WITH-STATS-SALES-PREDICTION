@@ -19,14 +19,8 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
 from database import db_manager
 from ui import widgets as W
 from utils.helpers import money
-<<<<<<< HEAD
-from config import UPLOAD_DIR as _CFG_UPLOAD_DIR
-=======
 from utils import dashboard_cache
-from config import UPLOAD_DIR as _CFG_UPLOAD_DIR, user_data_dir as _user_data_dir
-
-_USER_DATA_DIR = _user_data_dir()
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
+from config import UPLOAD_DIR as _CFG_UPLOAD_DIR
 
 
 # --------------------------------------------------------------------------- #
@@ -45,51 +39,31 @@ def _app_base_dir() -> str:
     return os.path.abspath(os.path.join(here, "..", ".."))
 
 
-APP_BASE   = _app_base_dir()
-IMG_DIR    = os.path.join(APP_BASE, "dist", "img")
+APP_BASE = _app_base_dir()
+IMG_DIR = os.path.join(APP_BASE, "dist", "img")
 
-<<<<<<< HEAD
 # Where uploads are WRITTEN. Deliberately NOT the folder above: in a frozen
 # build IMG_DIR points inside `Program Files\Sales Aura\internal`, which is
 # read-only for a normal user, so saving the profile picture or company logo
 # there failed with "[Errno 13] Permission denied". config.UPLOAD_DIR resolves
-# to %LOCALAPPDATA%\Sales Aura\uploads when frozen, and to the project's own
+# to %LOCALAPPDATA%\Sales Aura\uploads when frozen and to the project's own
 # dist/img/uploads when running from source.
 UPLOAD_DIR = _CFG_UPLOAD_DIR
 
-# Search the writable folder first (that is where a new upload lands), and keep
-# the old read-only locations so pictures uploaded before this change - or by
-# the PHP app - still display.
-_UPLOAD_SEARCH_DIRS = [
-    UPLOAD_DIR,
-    os.path.join(IMG_DIR, "uploads"),
-    IMG_DIR,
-=======
-# Where uploads are WRITTEN. This is deliberately NOT the folder above: in a
-# frozen build IMG_DIR points inside `Program Files\Sales Aura\internal`,
-# which is read-only for a normal user, so saving the profile picture or the
-# company logo there failed with "[Errno 13] Permission denied".
-# config.UPLOAD_DIR resolves to %LOCALAPPDATA%\Sales Aura\uploads when frozen
-# and to the project's own dist/img/uploads when running from source.
-UPLOAD_DIR = _CFG_UPLOAD_DIR
-
-
 # `admin.picture` only stores a bare file name, and the picture may physically
-# sit in this project's dist/img/uploads OR in the original CodeIgniter project's
-# public/dist/img/uploads. Search them all so the avatar always resolves.
-# The writable folder is searched FIRST (that is where a new upload lands),
-# and the read-only locations are kept so pictures uploaded by an older build,
-# or by the PHP app, still display.
+# sit in this project's uploads OR in the original CodeIgniter project's
+# public/... uploads. Search them all so the avatar always resolves. The
+# writable folder is searched FIRST (that is where a new upload lands), and
+# the read-only locations are kept so pictures uploaded by an older build, or
+# by the PHP app, still display.
 _ORIG_PROJECT_ROOT = os.path.join(os.path.dirname(APP_BASE), "C4")
 _UPLOAD_DIRS = [
     UPLOAD_DIR,
-    os.path.join(_USER_DATA_DIR, "uploads"),
     IMG_DIR,
     os.path.join(APP_BASE, "dist", "img", "uploads"),
     os.path.join(_ORIG_PROJECT_ROOT, "public", "dist", "img", "uploads"),
     os.path.join(_ORIG_PROJECT_ROOT, "public", "dist", "img"),
     os.path.join(_ORIG_PROJECT_ROOT, "public", "uploads"),
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 ]
 
 
@@ -97,15 +71,8 @@ def _resolve_upload(name: str) -> str:
     if not name:
         return ""
     v = str(name).strip().replace("\\", "/")
-<<<<<<< HEAD
-    base = os.path.basename(v)
-    if os.path.isfile(v):
-        return os.path.abspath(v)
-    for folder in _UPLOAD_SEARCH_DIRS:
-        candidate = os.path.join(folder, base)
-=======
-    if not v:
-        return ""
+
+    # absolute path
     if os.path.isfile(v):
         return os.path.abspath(v)
 
@@ -113,12 +80,12 @@ def _resolve_upload(name: str) -> str:
     if not rel_parts:
         return ""
     basename = rel_parts[-1]
+
     for folder in _UPLOAD_DIRS:
         candidate = os.path.join(folder, *rel_parts)
         if os.path.isfile(candidate):
             return candidate
         candidate = os.path.join(folder, basename)
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
         if os.path.isfile(candidate):
             return candidate
     return ""
@@ -479,8 +446,6 @@ class SettingsPage(QWidget):
         v.addSpacing(4)
 
         # 4 stat rows as a grid: labels left, values right.
-        # using QGridLayout on plain QLabels means nothing draws its own border,
-        # so the white stays neatly inside the card.
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setHorizontalSpacing(6)
@@ -804,25 +769,12 @@ class SettingsPage(QWidget):
         self.p_name_lbl.setText(admin.get("name", "") or "—")
         self.p_prof_lbl.setText(admin.get("profession", "") or "")
 
-        # ---- stats ----
-        # NOTE: the function in db_manager is `dashboard_stats()`. This used to
-        # call a non-existent `get_dashboard_stats()`, whose AttributeError was
-        # swallowed by the `except` below - leaving `stats` empty and every
-<<<<<<< HEAD
-        # counter stuck at 0. Queried straight from SQLite so the card always
-        # reflects the live data.
-        try:
-            stats = db_manager.dashboard_stats() or {}
-        except Exception:
-            stats = {}
-=======
-        # counter stuck at 0. Served through dashboard_cache.cached() so the
-        # value the splash screen already prefetched is reused, and re-queried
-        # when the cache is cold or was invalidated by a save.
+        # ---- stats (served through dashboard_cache so the value the splash
+        # screen already prefetched is reused; re-queried when the cache is
+        # cold or was invalidated by a save). ----
         stats = dashboard_cache.cached(
             dashboard_cache.stats_key(), dashboard_cache.TTL_KPI,
             db_manager.dashboard_stats, default={}) or {}
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
         # Card key -> key returned by db_manager.dashboard_stats().
         # "Sales"/"Purchases" are rupee amounts (the card formats them with
@@ -907,7 +859,7 @@ class SettingsPage(QWidget):
                        Qt.TransformationMode.SmoothTransformation)
         self.tab_logo.setPixmap(pm)
 
-        # =====================================================================
+    # =====================================================================
     #  Bank rows
     # =====================================================================
     def _add_bank_row(self, data=None):
@@ -1039,12 +991,8 @@ class SettingsPage(QWidget):
                 pass
             W.info(self, "Profile picture updated.")
         except Exception as exc:
-<<<<<<< HEAD
             W.error(self, "Upload failed: %s\n\nSaving to:\n%s"
                     % (exc, UPLOAD_DIR))
-=======
-            W.error(self, "Upload failed: %s\n\nSaving to:\n%s" % (exc, UPLOAD_DIR))
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
     def _upload_company_logo(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -1057,16 +1005,12 @@ class SettingsPage(QWidget):
                    os.path.basename(path)
             shutil.copy2(path, os.path.join(UPLOAD_DIR, name))
             db_manager.update_admin(self.main.admin.get("id", 1),
-                                    {"logo": name})
+                                    {"picturelogo": name})
             self._refresh_logo()
             W.info(self, "Company logo updated.")
         except Exception as exc:
-<<<<<<< HEAD
             W.error(self, "Upload failed: %s\n\nSaving to:\n%s"
                     % (exc, UPLOAD_DIR))
-=======
-            W.error(self, "Upload failed: %s\n\nSaving to:\n%s" % (exc, UPLOAD_DIR))
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
     # =====================================================================
     #  Backup / restore

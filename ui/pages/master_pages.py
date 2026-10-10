@@ -191,11 +191,7 @@ class DTFooter(QWidget):
 
 
 # --------------------------------------------------------------------------- #
-<<<<<<< HEAD
 # Column-toggle strip (bottom-LEFT, blue buttons - matches Ledger page)
-=======
-# Column-toggle strip (bottom-LEFT, blue buttons)
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 # --------------------------------------------------------------------------- #
 class ColumnToggleStrip(QWidget):
     """Row of checkable buttons that show/hide each table column.
@@ -220,25 +216,15 @@ class ColumnToggleStrip(QWidget):
                 " border:1px solid #367fa9; border-radius:3px;"
                 " padding:2px 10px; font-size:11.5px; }"
                 "QPushButton:hover { background:#367fa9; }"
-<<<<<<< HEAD
                 "QPushButton:!checked { background:#dd4b39;"
                 " border-color:#c23321; }")
-=======
-                "QPushButton:checked { background:#3c8dbc;"
-                " border-color:#367fa9; color:#ffffff; }"
-                "QPushButton:!checked { background:#888888;"
-                " border-color:#555555; }")
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
             b.setCheckable(True)
             b.setChecked(True)
             b.toggled.connect(
                 lambda on, col=i: table.setColumnHidden(col, not on))
             h.addWidget(b)
 
-<<<<<<< HEAD
         # trailing stretch pins the strip to the bottom-LEFT corner
-=======
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
         h.addStretch()
 
 
@@ -567,6 +553,12 @@ class ClientMasterPage(QWidget):
     }
     STRETCH_COLS = [1, 2, 3, 4, 5]
 
+    # User-Type choices for the add/edit dialog. Kept in one place so the
+    # combo and _utype_label() can never drift apart.
+    UTYPE_OPTIONS = [(0, "Client"),
+                     (1, "Supplier"),
+                     (2, "Dual(Cust/Sup)")]
+
     def __init__(self, main):
         super().__init__()
         self.main = main
@@ -815,12 +807,6 @@ class ClientMasterPage(QWidget):
             # to what the web app writes.
             ("User Type", "u_type", "combo", self.UTYPE_OPTIONS),
         ]
-
-    # User-Type choices for the add/edit dialog. Kept in one place so the
-    # combo and _utype_label() can never drift apart.
-    UTYPE_OPTIONS = [(0, "Client"),
-                     (1, "Supplier"),
-                     (2, "Dual(Cust/Sup)")]
 
     def type_name_options(self):
         """[(name, name)] for the Bill/Client-Type combo.

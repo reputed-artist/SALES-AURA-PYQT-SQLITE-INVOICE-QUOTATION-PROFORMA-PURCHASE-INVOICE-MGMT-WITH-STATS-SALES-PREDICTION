@@ -15,12 +15,7 @@ def _is_frozen() -> bool:
 
 
 def app_root() -> str:
-    """
-    Folder containing the deployed app (exe + its read-only data folders).
-
-    - Frozen : sys._MEIPASS (== exe folder when built with --contents-directory ".")
-    - Source : project root
-    """
+    """Folder containing the deployed app (exe + its read-only data folders)."""
     if _is_frozen():
         base = getattr(sys, "_MEIPASS", None)
         if base and os.path.isdir(base):
@@ -72,13 +67,12 @@ def user_db_path(db_name: str = "sales_aura.db") -> str:
 def bundled_seed_db(seed_name: str = "sales_aura.db") -> str:
     """
     Path to the SEED DB shipped with the app.
-    Looks under  <app_root>\\data\\<seed_name>  first, then
-    <app_root>\\database\\<seed_name>  (either is fine — the config
-    just needs to know which one you actually ship).
+    Checks <app_root>/data/<seed_name> first, then
+    <app_root>/database/<seed_name>. Returns the primary location even if
+    missing so callers can log a sensible path.
     """
     for sub in ("data", "database"):
         p = resource_path(sub, seed_name)
         if os.path.isfile(p):
             return p
-    # Fall back to the primary location so callers get a path even if missing
     return resource_path("data", seed_name)

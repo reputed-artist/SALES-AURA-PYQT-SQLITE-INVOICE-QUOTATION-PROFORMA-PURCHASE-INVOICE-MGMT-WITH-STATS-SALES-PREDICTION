@@ -6,20 +6,13 @@ DataTables-style table with bold totals row and the same red DataTables
 export button strip (Copy / JSON / Excel / CSV / PDF / Print / TXT / SQL /
 Docx / PNG) the master pages use.
 """
-import csv
-import json
 import os
 
-<<<<<<< HEAD
 from PyQt6.QtCore import Qt, QObject, QEvent
 from PyQt6.QtGui import QTextDocument, QFontMetrics
-=======
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QTextDocument
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 from PyQt6.QtPrintSupport import QPrinter, QPrintPreviewDialog
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-                             QHeaderView, QApplication, QFileDialog)
+                             QHeaderView, QApplication, QFileDialog, QLabel)
 
 from database import db_manager
 from ui import widgets as W
@@ -42,7 +35,6 @@ REPORT_CRUMB = {
 }
 
 # --------------------------------------------------------------------------- #
-<<<<<<< HEAD
 # Column widths for every report page.
 #
 # Goal: the low-information columns (Sr No, Invoice/Quote id, Date, Actions)
@@ -226,101 +218,15 @@ def _apply_column_layout(table, headers, data_keys, rows, display=None):
     Resizing to contents is what made the columns jump around while paging and
     filtering; here each column keeps the width `_measure_column_widths`
     derived from the data.  See that function for the `display` override.
-=======
-# Column widths for the Quotation-family reports.
-#
-# The generic report table lets every column fit its content
-# ('ResizeToContents') with only the last section stretching, so the columns
-# come out uneven and even re-flow when you page/filter.  For the three
-# quotation reports we instead pin the narrow / numeric columns to stable
-# widths and let just the text-heavy columns stretch - the same approach the
-# master, accounts and ledger pages already use (_apply_column_widths).
-#
-# Keyed by (kind, doc) exactly as ReportPage receives them, so only these
-# reports are affected; every other report keeps its previous behaviour.
-#
-# Column index -> meaning (for reference):
-#
-#   Quick Quote Report  ("quickquote", None)
-#     0 Sr No    1 Quote ID   2 Product*   3 Mobile   4 Qty
-#     5 Price    6 Subtotal   7 GST        8 Total    9 Date
-#
-#   Quote Item Report   ("item", "quote")
-#     0 Sr No    1 Invoice    2 Client*    3 Date     4 Item*
-#     5 Description*         6 HSN        7 Qty      8 Price
-#     9 Subtotal 10 Tax Rate  11 Tax Amt  12 Total
-#
-#   Quote Report        ("summary", "quote")
-#     0 Sr No    1 Invoice    2 Client*    3 Date
-#     4 Items    5 Subtotal   6 Tax Rate   7 Tax Amt  8 Total
-#
-#   (*) = stretch column
-# --------------------------------------------------------------------------- #
-COLUMN_LAYOUT = {
-    # Quick Quote Report - Product is the only free-flowing column.
-    ("quickquote", None): (
-        {0: 45,           # Sr No     - narrow
-         1: 110,          # Quote ID
-         3: 110,          # Mobile
-         4: 55,           # Qty       - narrow
-         5: 100,          # Price
-         6: 110,          # Subtotal
-         7: 90,           # GST
-         8: 110,          # Total
-         9: 100},         # Date
-        [2]),             # Product stretches
-
-    # Quote Item Report - Client / Item / Description stretch.
-    ("item", "quote"): (
-        {0: 45,           # Sr No     - narrow
-         1: 120,          # Invoice
-         3: 100,          # Date
-         6: 90,           # HSN       - narrow
-         7: 55,           # Qty       - narrow
-         8: 100,          # Price
-         9: 110,          # Subtotal
-         10: 75,          # Tax Rate  - narrow
-         11: 100,         # Tax Amt
-         12: 110},        # Total
-        [2, 4, 5]),       # Client, Item, Description stretch
-
-    # Quote Report - Client stretches.
-    ("summary", "quote"): (
-        {0: 45,           # Sr No     - narrow
-         1: 130,          # Invoice
-         3: 110,          # Date
-         4: 60,           # Items     - narrow
-         5: 120,          # Subtotal
-         6: 80,           # Tax Rate  - narrow
-         7: 110,          # Tax Amt
-         8: 120},         # Total
-        [2]),             # Client stretches
-}
-
-
-def _apply_column_layout(table, fixed_cols, stretch_cols):
-    """Pin report column widths so they no longer jump with the page content.
-
-    Mirrors the `_apply_column_widths` helper used by the master / accounts /
-    ledger pages: explicit widths for the fixed columns, remaining space split
-    evenly between the stretch columns.
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
     """
     header = table.horizontalHeader()
     header.setStretchLastSection(False)
     header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-<<<<<<< HEAD
+
     for col, width in _measure_column_widths(table, headers,
                                              data_keys, rows,
                                              display).items():
         table.setColumnWidth(col, width)
-=======
-    for col, width in fixed_cols.items():
-        header.setSectionResizeMode(col, QHeaderView.ResizeMode.Fixed)
-        table.setColumnWidth(col, width)
-    for col in stretch_cols:
-        header.setSectionResizeMode(col, QHeaderView.ResizeMode.Stretch)
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
 
 # --------------------------------------------------------------------------- #
@@ -401,6 +307,9 @@ def _generic_export(parent, kind, rows, columns, filename_stub,
 
     columns : list of (key, header) tuples
     """
+    import csv
+    import json
+
     if not rows:
         W.info(parent, "Nothing to export.")
         return
@@ -589,7 +498,6 @@ def _generic_export(parent, kind, rows, columns, filename_stub,
         img.save(fname, "PNG")
         W.info(parent, f"Saved to {fname}")
 
-<<<<<<< HEAD
 
 class _ViewportRelayout(QObject):
     """Re-apply the column layout whenever the table viewport is resized.
@@ -612,8 +520,6 @@ class _ViewportRelayout(QObject):
             self._callback()
         return False
 
-=======
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
 class ReportPage(QWidget):
     def __init__(self, main, kind, doc, title):
@@ -649,19 +555,12 @@ class ReportPage(QWidget):
 
         self.headers, self.columns, self.total_cols = self._spec()
         self.table = W.DataTable(self.headers)
-<<<<<<< HEAD
         # re-divide the width whenever the table itself gets a real width
         self._relayout_watch = _ViewportRelayout(
             self.table, self._relayout_columns)
-=======
-        layout = COLUMN_LAYOUT.get((kind, doc))
-        if layout:
-            _apply_column_layout(self.table, layout[0], layout[1])
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
         box.add(self.table, 1)
         self.paginator = W.Paginator(on_change=self._render)
         box.add(self.paginator, 0)
-        from PyQt6.QtWidgets import QLabel
         self.totals_label = QLabel("")
         self.totals_label.setStyleSheet("font-weight: 600; color: #444;")
         box.add(self.totals_label)
@@ -748,7 +647,6 @@ class ReportPage(QWidget):
                           for c in self.total_cols)
         self.totals_label.setText(f"{len(rows)} records  |  {parts}")
 
-<<<<<<< HEAD
     def _relayout_columns(self):
         """Re-measure the columns against the current data + viewport width.
 
@@ -767,8 +665,6 @@ class ReportPage(QWidget):
         super().resizeEvent(event)
         self._relayout_columns()
 
-=======
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
     def _on_export(self, kind):
         """Export the filtered report rows in the requested format.
 

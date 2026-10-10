@@ -940,20 +940,17 @@ class FormDialog(QDialog):
 # ---------------------------------------------------------------------------
 # Image picker
 # ---------------------------------------------------------------------------
-<<<<<<< HEAD
+
 PRODUCT_IMG_DIR = UPLOAD_DIR
-=======
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 # Product pictures are user uploads, so they go to the same writable per-user
 # folder as the avatar / company logo (config.UPLOAD_DIR). The old path walked
 # up out of the app folder into `<repo>/../public/dist/img`, which inside a
 # frozen build resolves under `Program Files\Sales Aura` - read-only, so the
 # copy silently failed (it was wrapped in a bare `except: pass`) and the
 # product ended up without its picture.
-<<<<<<< HEAD
-=======
+
 PRODUCT_IMG_DIR = UPLOAD_DIR
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
+
 
 
 class ImagePickerField(QWidget):

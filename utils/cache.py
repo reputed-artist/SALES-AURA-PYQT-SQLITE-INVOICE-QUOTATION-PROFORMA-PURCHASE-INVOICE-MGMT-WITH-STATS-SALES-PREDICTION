@@ -86,11 +86,7 @@ class TTLCache:
             self._save()
 
     def flush(self) -> None:
-<<<<<<< HEAD
         """Write the in-memory cache to disk now."""
-=======
-        """Write the in-memory cache to disk now (no-op if nothing changed)."""
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
         self._save()
 
     def invalidate(self, key: str) -> None:
@@ -171,12 +167,6 @@ class TTLCache:
             with _LOCK:
                 payload = {k: (e.value, e.expires_at)
                            for k, e in self._data.items() if e.valid()}
-<<<<<<< HEAD
-=======
-        except Exception:
-            return
-        try:
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
             os.makedirs(os.path.dirname(self._persist_path), exist_ok=True)
             tmp = self._persist_path + ".tmp"
             with open(tmp, "wb") as f:
@@ -196,14 +186,9 @@ class _Batch:
     def __exit__(self, *exc):
         _BATCH[0] = max(0, _BATCH[0] - 1)
         if _BATCH[0] == 0:
-<<<<<<< HEAD
-            try:
-                cache.flush()      # one flush for the whole batch
-=======
             # Flush exactly once for the whole batch.
             try:
                 cache.flush()
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
             except Exception:
                 pass
         return False

@@ -25,7 +25,6 @@ from ui.pages.master_pages import ExportButtonStrip, _generic_export
 
 
 # =========================================================================== #
-<<<<<<< HEAD
 # Qt safety helper — true if the C++ side of a widget still exists
 # =========================================================================== #
 def _qt_alive(widget):
@@ -769,11 +768,8 @@ class InfoPage(QWidget):
         self.title = self.KIND_TITLE[kind]
         self.data = None
         self._docs = []
-<<<<<<< HEAD
         # store references to any opened invoice preview dialogs
         self._view_windows = []
-=======
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
         self._build()
         self.refresh()
 
@@ -1098,8 +1094,6 @@ class InfoPage(QWidget):
         except Exception as exc:
             W.error(self, f"Load failed: {exc}")
             return
-<<<<<<< HEAD
-
         # Prune closed/destroyed dialogs before opening a new one.
         self._view_windows = [w for w in getattr(self, "_view_windows", [])
                               if _qt_alive(w)]
@@ -1132,11 +1126,8 @@ class InfoPage(QWidget):
     def _prune_views(self):
         self._view_windows = [w for w in getattr(self, "_view_windows", [])
                               if _qt_alive(w)]
-=======
-        invoice_print.show_invoice_view(
-            self, doc, master, items,
-            title=f"{db_manager.DOC_REGISTRY[doc]['label']} {r['invid']}")
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
+
+    def _edit(self, doc, r):
 
     def _edit(self, doc, r):
         from ui.pages.invoice_pages import InvoiceGenPage
@@ -1297,13 +1288,12 @@ class ProductInfoPage(InfoPage):
         self._user_card.set_image(_product_image_path(d))
 
         # ---------------- SALES ----------------
-<<<<<<< HEAD
-=======
         # Preference order:
         #   1. explicit money total (total_amount / total_sales / total_value)
         #   2. otherwise the quantity sold (total_sold) — matches the PHP view
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
         sales_val = (self.data.get("total_amount")
+                     or self.data.get("total_sales")
+                     or self.data.get("total_value"))
                      or self.data.get("total_sales")
                      or self.data.get("total_value"))
         if sales_val not in (None, "", 0):
@@ -1313,29 +1303,20 @@ class ProductInfoPage(InfoPage):
             sales_txt = _fmt_int(sold)
 
         # ---------------- PRODUCTS ----------------
-<<<<<<< HEAD
-=======
         # Number of distinct products / items sold for this product.
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
         products_val = (self.data.get("total_items")
                         or self.data.get("item_count")
                         or self.data.get("total_products"))
         if products_val in (None, "", 0):
-<<<<<<< HEAD
-=======
             # Fall back to the sold quantity (matches PHP when no
             # separate count is provided)
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
             products_val = self.data.get("total_sold")
         products_txt = _fmt_int(products_val)
 
         # ---------------- INVOICE ----------------
         invoices_val = self.data.get("total_invoices")
         if invoices_val in (None, ""):
-<<<<<<< HEAD
-=======
             # Fall back to counting the invoice rows we loaded.
->>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
             invoices_val = sum(
                 len(v or []) for v in
                 (self.data.get("invoices") or {}).values()
