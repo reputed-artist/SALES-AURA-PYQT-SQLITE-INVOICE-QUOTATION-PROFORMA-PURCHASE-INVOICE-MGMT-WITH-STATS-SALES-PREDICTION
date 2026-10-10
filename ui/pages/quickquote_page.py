@@ -295,7 +295,14 @@ class QuickQuotePage(QWidget):
     def __init__(self, main):
         super().__init__()
         self.main = main
+<<<<<<< HEAD
         self.products = self._load_products()
+=======
+        # Only Machine + Consumables are offered in Quick Quote,
+        # listed in ascending p_id order.
+        self.products = db_manager.list_products(
+            p_type=["Machine", "Consumables"], asc=True)
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)

@@ -43,7 +43,50 @@ def _app_base_dir() -> str:
 
 
 APP_BASE = _app_base_dir()
-UPLOAD_DIR = os.path.join(APP_BASE, "dist", "img", "uploads")
+IMG_DIR = os.path.join(APP_BASE, "dist", "img")
+UPLOAD_DIR = os.path.join(IMG_DIR, "uploads")
+
+# The `admin.picture` column only stores a bare file name. Depending on whether
+# the picture was uploaded from this PyQt app or from the original CodeIgniter
+# site, the file can live in any of these folders - so every folder is searched
+# (same set utils/invoice_print.py already uses for product images).
+ORIG_PROJECT_ROOT = os.path.join(os.path.dirname(APP_BASE), "C4")
+
+AVATAR_DIRS = [
+    UPLOAD_DIR,
+    IMG_DIR,
+    os.path.join(ORIG_PROJECT_ROOT, "public", "dist", "img", "uploads"),
+    os.path.join(ORIG_PROJECT_ROOT, "public", "dist", "img"),
+    os.path.join(ORIG_PROJECT_ROOT, "public", "uploads"),
+]
+
+
+def _resolve_avatar_path(picture_name: str) -> str:
+    """Turn whatever the DB stores for `admin.picture` into a real file path."""
+    if not picture_name:
+        return ""
+    v = str(picture_name).strip().replace("\\", "/")
+    if not v:
+        return ""
+
+    # An absolute path or a URL-style path is used as-is when it really exists.
+    if os.path.isfile(v):
+        return os.path.abspath(v)
+
+    rel_parts = [p for p in v.split("/") if p not in ("", ".", "..")]
+    if not rel_parts:
+        return ""
+    basename = rel_parts[-1]
+
+    for folder in AVATAR_DIRS:
+        # exact stored relative path first, then bare file name
+        candidate = os.path.join(folder, *rel_parts)
+        if os.path.isfile(candidate):
+            return candidate
+        candidate = os.path.join(folder, basename)
+        if os.path.isfile(candidate):
+            return candidate
+    return ""
 
 
 def _qicon_from_pixmap(pm: QPixmap) -> QIcon:
@@ -51,12 +94,7 @@ def _qicon_from_pixmap(pm: QPixmap) -> QIcon:
 
 
 def _circular_avatar(picture_name: str, size: int = 42) -> QPixmap:
-    path = ""
-    if picture_name:
-        base = os.path.basename(str(picture_name).replace("\\", "/"))
-        candidate = os.path.join(UPLOAD_DIR, base)
-        if os.path.isfile(candidate):
-            path = candidate
+    path = _resolve_avatar_path(picture_name)
 
     pm = QPixmap(path) if path else QPixmap()
     if pm.isNull():
@@ -989,7 +1027,8 @@ class MainWindow(QMainWindow):
     def refresh_user_avatar(self):
         try:
             from database import db_manager
-            new_admin = db_manager.get_admin() or {}
+            new_admin = db_manager.get_admin(
+                self.admin.get("id", 1)) or {}
             self.admin.update(new_admin)
         except Exception:
             pass

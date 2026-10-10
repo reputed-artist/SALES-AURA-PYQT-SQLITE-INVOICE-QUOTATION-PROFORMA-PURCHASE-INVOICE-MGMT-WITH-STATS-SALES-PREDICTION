@@ -341,6 +341,7 @@ class SplashScreen(QWidget):
         self._held = True
 
     def release_finish(self) -> None:
+<<<<<<< HEAD
         """
         Let a held splash close.
 
@@ -374,6 +375,12 @@ class SplashScreen(QWidget):
             pass
 
         # Already at 100% — fade out now.
+=======
+        """Let a held splash close (starts the fade-out immediately)."""
+        self._held = False
+        if self._fade_in.isActive():
+            self._fade_in.stop()
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
         if self.isVisible():
             self._begin_fade_out()
 

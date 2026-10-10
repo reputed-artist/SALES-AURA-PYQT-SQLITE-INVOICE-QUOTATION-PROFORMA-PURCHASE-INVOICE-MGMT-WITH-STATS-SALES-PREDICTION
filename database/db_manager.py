@@ -6,24 +6,39 @@ Tables are the exact schema from db.sql:
   bankdetails, paidhistory, invtest/invtest2 (tax), protest/protest2 (proforma),
   quote/quote2, purchaseinv/purchaseinv2, quickquote, delivery_addresses
 """
+<<<<<<< HEAD
 import os
 import shutil
 import sqlite3
 import threading
 from datetime import date, datetime
+=======
+import threading
+
+import pymysql
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
 from config import DB_CONFIG, DB_FILE, BACKUP_DIR
 from database import sqlite_compat
 
+<<<<<<< HEAD
 _CONN = None
 _CONN_LOCK = threading.RLock()
 _INIT_DONE = False
+=======
+# One pymysql connection PER THREAD. A single shared connection is not safe to
+# use from two threads at once (pymysql cursors/state are connection-bound), and
+# the splash screen prefetches dashboard rows on a worker thread while the UI
+# thread is still alive - sharing one handle there corrupts results.
+_CONN_LOCAL = threading.local()
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
 
 # --------------------------------------------------------------------------- #
 #  Connection
 # --------------------------------------------------------------------------- #
 def get_connection():
+<<<<<<< HEAD
     """Persistent shared SQLite connection.
 
     One connection is reused for the whole process (the UI is mostly
@@ -87,6 +102,34 @@ def close_connection():
                 _CONN.close()
             finally:
                 _CONN = None
+=======
+    """Persistent per-thread connection: avoids the per-query connect cost that
+    caused UI freezes; pings/reconnects transparently."""
+    conn = getattr(_CONN_LOCAL, "conn", None)
+    if conn is not None:
+        try:
+            conn.ping(reconnect=True)
+            return conn
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            _CONN_LOCAL.conn = None
+    conn = pymysql.connect(
+        host=DB_CONFIG["host"],
+        port=DB_CONFIG["port"],
+        user=DB_CONFIG["user"],
+        password=DB_CONFIG["password"],
+        database=DB_CONFIG["database"],
+        charset=DB_CONFIG["charset"],
+        cursorclass=pymysql.cursors.DictCursor,
+        autocommit=True,
+        connect_timeout=3,
+    )
+    _CONN_LOCAL.conn = conn
+    return conn
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
 
 class _transaction:
@@ -139,8 +182,28 @@ def _indexed(columns=()):
     if not _INDEXES_READY:
         return False
     try:
+<<<<<<< HEAD
         for pair in [c for c in columns if c not in _INDEX_CACHE]:
             _INDEX_CACHE[pair] = _has_index(pair[0], pair[1])
+=======
+        missing = [c for c in columns if c not in _INDEX_CACHE]
+        if missing:
+            placeholders = ",".join(["(%s,%s)"] * len(missing))
+            rows = DB.query(
+                "SELECT TABLE_NAME AS t, COLUMN_NAME AS c"
+                " FROM INFORMATION_SCHEMA.STATISTICS"
+                " WHERE TABLE_SCHEMA = DATABASE()"
+                f" AND (TABLE_NAME, COLUMN_NAME) IN ({placeholders})",
+                tuple(x for pair in missing for x in pair))
+            have = {(r["t"], r["c"]) for r in rows}
+            for c in missing:
+                _INDEX_CACHE[c] = c in have
+        # Short-circuit when every column is already cached. Without this the
+        # empty `missing` list produced "IN ()", which is a MySQL syntax error;
+        # the except branch swallowed it and returned True, so the function
+        # "worked" by accident while firing a pointless failing query on the
+        # UI thread for every chart on every dashboard load.
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
         return all(_INDEX_CACHE.get(c, False) for c in columns)
     except Exception:
         return True      # assume the DDL worked; the SQL path raises if not
@@ -166,12 +229,21 @@ def ensure_dashboard_indexes():
         try:
             DB.execute(ddl)
         except Exception:
+<<<<<<< HEAD
             pass      # best effort - charts have Python-join fallbacks
 
     # client.cid and invtest2.cid are primary keys, so they are indexed by
     # definition and need no DDL. Seed them directly: location_tree() asks for
     # them on every dashboard load, and without this each load re-ran two
     # PRAGMA index_list/index_info probes for the same columns.
+=======
+            pass  # best effort - charts have Python-join fallbacks
+
+    # client.cid and invtest2.cid are primary keys, so they are indexed by
+    # definition and need no DDL. Seed them directly: location_tree() asks for
+    # them on every dashboard load, and without this each load re-queried
+    # INFORMATION_SCHEMA for the same two columns.
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
     _INDEX_CACHE[("client", "cid")] = True
     _INDEX_CACHE[("invtest2", "cid")] = True
 
@@ -215,6 +287,7 @@ class DB:
     def execute(sql, params=None, return_id=False):
         stmt = DB._stmt(sql, params)
         conn = get_connection()
+<<<<<<< HEAD
         with _CONN_LOCK:
             cur = conn.execute(stmt, params if params else ())
             try:
@@ -235,6 +308,25 @@ class DB:
                 return cur.rowcount
             finally:
                 cur.close()
+=======
+        with conn.cursor() as cur:
+            cur.execute(sql, params or ())
+            conn.commit()
+            result = cur.lastrowid if return_id else cur.rowcount
+        # Any INSERT/UPDATE/DELETE can move a dashboard KPI or chart, and the
+        # splash screen now pre-warms those queries into utils.cache. Dropping
+        # the cache here (the single choke point for every write in the app)
+        # guarantees the next dashboard render re-queries instead of showing
+        # numbers from before the edit. DDL statements are left alone.
+        head = sql.lstrip()[:6].upper()
+        if head.startswith(("INSERT", "UPDATE", "DELETE", "REPLAC")):
+            try:
+                from utils.dashboard_cache import invalidate_dashboard
+                invalidate_dashboard()
+            except Exception:
+                pass  # never let cache bookkeeping break a save
+        return result
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
     @staticmethod
     def scalar(sql, params=None, default=0):
@@ -407,18 +499,25 @@ def get_next_client_id():
 # ---------------------------------------------------------------------------
 # Products
 # ---------------------------------------------------------------------------
-def list_products(search="", p_type=None):
+def list_products(search="", p_type=None, asc=False):
     sql = "SELECT * FROM products"
     where, params = [], []
     if p_type:
-        where.append("p_type=%s")
-        params.append(p_type)
+        # Accept a single type or a list/tuple/set of types so callers such
+        # as the Quick Quote page can ask for e.g. Machine + Consumables.
+        if isinstance(p_type, (list, tuple, set)):
+            types = list(p_type)
+            where.append("p_type IN (" + ", ".join(["%s"] * len(types)) + ")")
+            params += types
+        else:
+            where.append("p_type=%s")
+            params.append(p_type)
     if search:
         where.append("(name LIKE %s OR description LIKE %s OR hsn LIKE %s)")
         params += [f"%{search}%"] * 3
     if where:
         sql += " WHERE " + " AND ".join(where)
-    sql += " ORDER BY p_id DESC"
+    sql += " ORDER BY p_id " + ("ASC" if asc else "DESC")
     return DB.query(sql, params)
 
 

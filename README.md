@@ -1,11 +1,18 @@
 # 🚀 Sales Aura
 
+<<<<<<< HEAD
 ### PyQt6 + SQLite Business Management, Invoicing & Sales Prediction System
 
 **Sales Aura** is a modern desktop business management and invoicing application built with **Python, PyQt6 and SQLite**.
 
 > **Zero-setup storage** — the app now keeps all of its data in a local SQLite file located at `%LOCALAPPDATA%\Sales Aura\sales aura.db`. There is no database server to install, no credentials to configure and no XAMPP/MySQL dependency. On the very first launch the file is created automatically and seeded from the bundled `db.sql` dump.
 
+=======
+### PyQt6 + MySQL Business Management, Invoicing & Sales Prediction System
+
+**Sales Aura** is a modern desktop business management and invoicing application built with **Python, PyQt6 and MySQL**.
+
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 It brings sales, purchasing, quotations, invoicing, customer management, accounts, inventory-related operations, reports and **sales prediction** together in a single desktop application.
 
 The project is designed for small and medium-sized businesses that need a practical desktop solution for managing their day-to-day sales and billing operations while also turning historical sales data into actionable insights.
@@ -194,17 +201,29 @@ Documents can be opened through print preview and prepared for PDF/physical prin
 
 * **Python 3**
 * **PyQt6**
+<<<<<<< HEAD
 * **sqlite3** (built into Python — no driver to install)
 
 ### Database
 
 * **SQLite 3** — local file storage, no server required
+=======
+* **PyMySQL**
+
+### Database
+
+* **MySQL / MariaDB**
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
 ### Application Architecture
 
 * PyQt6 desktop UI
 * Modular page architecture
+<<<<<<< HEAD
 * SQLite database layer with a MySQL-dialect compatibility shim
+=======
+* MySQL database layer
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 * Reusable utility functions
 * Invoice/document rendering
 * Financial-year based business logic
@@ -217,6 +236,7 @@ Documents can be opened through print preview and prepared for PDF/physical prin
 pyqt_app/
 │
 ├── database/
+<<<<<<< HEAD
 │   ├── db_manager.py          # all queries / data access
 │   ├── sqlite_compat.py       # MySQL-dialect -> SQLite translation
 │   ├── schema_sqlite.py       # table definitions for the local database
@@ -225,6 +245,9 @@ pyqt_app/
 ├── data/                      # created automatically on first run
 │   ├── sales_aura.db          # the local SQLite database
 │   └── backups/               # one-click backups
+=======
+│   └── db_manager.py
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 │
 ├── dist/
 │   └── img/
@@ -308,6 +331,7 @@ The repository already contains a `requirements.txt` file for the Python depende
 
 # 🗄️ Database Setup
 
+<<<<<<< HEAD
 **No manual database setup is required.** Sales Aura uses a local SQLite file.
 
 On the first launch the app automatically:
@@ -319,12 +343,43 @@ On the first launch the app automatically:
 5. Creates the secondary indexes the dashboard relies on
 
 To start from scratch, simply delete the `data/` folder and launch the app again.
+=======
+Sales Aura requires a MySQL/MariaDB database.
+
+### 1. Create a database
+
+For example:
+
+```sql
+CREATE DATABASE db;
+```
+
+### 2. Import the database
+
+Import:
+
+```text
+db.sql
+```
+
+using phpMyAdmin, MySQL Workbench or the MySQL command line.
+
+Example:
+
+```bash
+mysql -u root -p db < db.sql
+```
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
 ---
 
 # ⚙️ Database Configuration
 
+<<<<<<< HEAD
 The database location is configured in:
+=======
+Update the database configuration in:
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
 ```text
 config.py
@@ -333,6 +388,7 @@ config.py
 Example:
 
 ```python
+<<<<<<< HEAD
 # SQLite database - stored in %LOCALAPPDATA%\Sales Aura\ (writable)
 # When frozen (exe): uses get_db_path() -> %LOCALAPPDATA%\Sales Aura\sales aura.db
 # When running from source: uses BASE_DIR/data/sales aura.db
@@ -373,6 +429,15 @@ just before it is executed:
 
 This keeps every screen — and every query — behaving exactly as before while
 the storage is now a single local file.
+=======
+DB_HOST = "localhost"
+DB_NAME = "db"
+DB_USER = "root"
+DB_PASSWORD = ""
+```
+
+Adjust these values according to your MySQL/MariaDB installation.
+>>>>>>> 3e4104e24bf0fa17c5d25c77d7ba1bc88d7f7a71
 
 ---
 
